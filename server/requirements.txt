@@ -1,0 +1,3 @@
+Pillow>=10
+icalendar>=6
+recurring-ical-events>=3

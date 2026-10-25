@@ -1,0 +1,10 @@
+Third-party material shipped in this repository
+
+- client/fonts/Caveat-Regular.ttf: Caveat, by The Caveat Project Authors, SIL Open
+  Font License 1.1 (see client/fonts/OFL.txt).
+
+Used but not shipped (install them yourself; see docs/setup.md)
+
+- fbink_xdamage (https://github.com/schuhumi/fbink-xdamage) and FBInk
+  (https://github.com/NiLuJe/FBInk): the display helper that refreshes the e-ink panel.
+- Python packages in server/requirements.txt: Pillow, icalendar, recurring-ical-events.
