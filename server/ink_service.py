@@ -948,7 +948,7 @@ def page_sentence(kind, when, topic):
     if kind == "today":
         return "They wrote this on today's page, the blank paper under their day."
     if kind == "meeting":
-        return f"They wrote this on the notes page for their meeting {title}{when_text}."
+        return f"They wrote this on the notes page for their calendar event {title}{when_text}."
     if kind == "task":
         return f"They wrote this on the page for their task {title}{when_text}."
     return f"They wrote this on their page {title}{when_text}."

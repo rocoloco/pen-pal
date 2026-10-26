@@ -2,9 +2,9 @@
 #define HERMES_DAILY_UI_H
 #include "page-answers.h"
 /* ---- Daily mode: four surfaces, one footer -------------------------------------
- * Today   a warm note from Hermes, the day's meetings and tasks, and blank paper
+ * Today   a warm note from Hermes, the day's events and tasks, and blank paper
  *         (the day's own page) to write on straight away.
- * Page    a meeting or task on a full-width canvas, with Hermes' prep above it.
+ * Page    a calendar event or task on a full-width canvas, with Hermes' prep above it.
  * Pages   every saved page, newest first.
  * Saved   one saved page, read-only, with Hermes' notes still on it.
  * The footer never changes meaning: going back on the left, the star (ask Hermes)
@@ -95,8 +95,8 @@ static void daily_note(char *out,size_t capacity){
     char due_text[300];due_text[0]=0;
     if(due==1){char title[240];snprintf(title,sizeof title,"%s",daily.entries[first_due].title);daily_lower_first(title);snprintf(due_text,sizeof due_text,"one thing due: %s",title);}
     else if(due>1)snprintf(due_text,sizeof due_text,"%s things due",daily_number_word(due,0));
-    if(meetings&&due)snprintf(out,capacity,"%s %s meeting%s today, and %s.",hello,daily_number_word(meetings,1),meetings==1?"":"s",due_text);
-    else if(meetings)snprintf(out,capacity,"%s %s meeting%s today. I'll keep the rest quiet.",hello,daily_number_word(meetings,1),meetings==1?"":"s");
+    if(meetings&&due)snprintf(out,capacity,"%s %s event%s today, and %s.",hello,daily_number_word(meetings,1),meetings==1?"":"s",due_text);
+    else if(meetings)snprintf(out,capacity,"%s %s event%s today. I'll keep the rest quiet.",hello,daily_number_word(meetings,1),meetings==1?"":"s");
     else if(due){due_text[0]=(char)(due_text[0]-32);snprintf(out,capacity,"%s %s.",hello,due_text);}
     else snprintf(out,capacity,"%s Nothing on the calendar today. The page is yours.",hello);
 }
@@ -219,7 +219,7 @@ static int daily_open_at(int index,int sheet){
     snprintf(daily_page.ink,sizeof daily_page.ink,"%s",folder);snprintf(daily_page.title,sizeof daily_page.title,"%s",daily_page_title(index));
     snprintf(daily_page.when,sizeof daily_page.when,"%s",e->when);snprintf(daily_page.kind,sizeof daily_page.kind,"%s",!strcmp(e->kind,"capture")?"today":e->kind);
     answers_attach(folder,0);
-    product_view=!strcmp(e->kind,"capture")?PRODUCT_TODAY:PRODUCT_NOTEBOOK;product_popup=0;product_ink_toolbar_expanded=0;product_ink_menu=0;
+    product_view=!strcmp(e->kind,"capture")?PRODUCT_TODAY:PRODUCT_NOTEBOOK;product_ink_toolbar_expanded=0;product_ink_menu=0;
     return 0;
 }
 static int daily_open(int index){return daily_open_at(index,0);}
@@ -370,7 +370,7 @@ static void daily_today_render(void){
         XSetForeground(display,gc,black_pixel);XSetLineAttributes(display,gc,1,LineSolid,CapButt,JoinMiter);XDrawLine(display,backing,gc,45,y+DAILY_ROW_H-40,width-45,y+DAILY_ROW_H-40);
     }
     if(daily_rows_more()){int y=daily_row_top(shown);const char *more=daily_rows_offset+shown<daily_row_count()?"More  \xe2\x80\xba":"Back to the first  \xe2\x80\xba";product_small_at(50,y+48,more);}
-    if(!daily.count||daily_row_count()==0)product_small_at(50,DAILY_ROW_TOP+48,"No meetings or tasks came through for today.");
+    if(!daily.count||daily_row_count()==0)product_small_at(50,DAILY_ROW_TOP+48,"No events or tasks came through for today.");
     if(daily_selected<0)return;
     XSetForeground(display,gc,black_pixel);XSetLineAttributes(display,gc,2,LineSolid,CapButt,JoinMiter);XDrawLine(display,backing,gc,45,DAILY_TODAY_TOP-20,width-45,DAILY_TODAY_TOP-20);
     canvas_top=DAILY_TODAY_TOP;canvas_bottom=height-190;product_draw_page();
@@ -378,7 +378,7 @@ static void daily_today_render(void){
     answers_render();daily_turn_cue();
 }
 static void daily_page_render(void){
-    char kicker[160],kind[16];snprintf(kind,sizeof kind,"%s",!strcmp(daily_page.kind,"task")?"ONE THING":!strcmp(daily_page.kind,"meeting")?"MEETING":"NOTE");
+    char kicker[160],kind[16];snprintf(kind,sizeof kind,"%s",!strcmp(daily_page.kind,"task")?"ONE THING":!strcmp(daily_page.kind,"meeting")?"EVENT":"NOTE");
     char when[96];when[0]=0;
     if(daily_selected>=0&&strcmp(daily_page.kind,"meeting"))daily_when_short(&daily.entries[daily_selected],when,sizeof when);
     else snprintf(when,sizeof when,"%s",strcmp(daily_page.when,"-")?daily_page.when:"");
@@ -402,7 +402,7 @@ static void daily_pages_render(void){
     int y=240,shown=0;
     for(int i=product_history_offset;i<product_history_count&&shown<DAILY_PAGES_PER;++i,++shown){
         ProductHistory *h=&product_history[i];char day[48];daily_pretty_date(h->date,day,sizeof day);product_small_at(50,y+40,day);
-        char label[40];snprintf(label,sizeof label,"%s",!strcmp(h->kind,"meeting")?"Meeting":!strcmp(h->kind,"task")?"One thing":"Note");
+        char label[40];snprintf(label,sizeof label,"%s",!strcmp(h->kind,"meeting")?"Event":!strcmp(h->kind,"task")?"One thing":"Note");
         daily_text_fit(daily_rows_face(),50,y+100,width-100-260,h->title);product_small_at(width-250,y+95,label);
         if(answers_have(h->ink))star_at(width-80,y+84,16,1,black_pixel);
         XSetForeground(display,gc,black_pixel);XSetLineAttributes(display,gc,1,LineSolid,CapButt,JoinMiter);XDrawLine(display,backing,gc,45,y+140,width-45,y+140);y+=DAILY_PAGES_PER>0?220:0;
@@ -534,11 +534,9 @@ static int daily_open_page_ref(int code){
     snprintf(status,sizeof status,"That page is not on this Scribe any more.");product_repaint();return 1;
 }
 static int daily_activate(int action){
-    /* The legacy space/Send/Confirm lanes never run in daily mode. */
-    if(action==PRODUCT_SEND||action==PRODUCT_CONFIRM_ACTION||action==PRODUCT_SPACES||
-       (action>=PRODUCT_SPACE_WORK&&action<PRODUCT_SPACE_WORK+PRODUCT_SPACE_COUNT)||action==DAILY_NOOP)return 1;
-    if(action==PRODUCT_CLOSE){daily_save();return 0;}                 /* legacy close quits */
-    if(action==PRODUCT_TODAY_ACTION||action==PRODUCT_WRITE||action==PRODUCT_NEW_PAGE||action==DAILY_ARCHIVE_TODAY||action==DAILY_SAVE)action=DAILY_TODAY;
+    if(action==DAILY_NOOP)return 1;
+    if(action==PRODUCT_CLOSE){daily_save();return 0;}                 /* the header X: save, then quit */
+    if(action==DAILY_ARCHIVE_TODAY||action==DAILY_SAVE)action=DAILY_TODAY;
     if(action==DAILY_TODAY){
         if(product_view==PRODUCT_ARCHIVE){daily_selected=-1;}
         slip_kind=SLIP_NONE;daily_enter_today();product_repaint();return 1;
@@ -631,7 +629,7 @@ static void daily_refresh_tick(void){
     if(!new_day&&(product_view!=PRODUCT_TODAY||slip_kind||product_ink_toolbar_expanded))return;
     if(daily_save())return;
     int was=daily_selected;daily_selected=-1;                                                /* daily_parse's guard */
-    if(product_load_brief_wire(path,0)){
+    if(product_load_daily_wire(path)){
         daily_selected=was;daily_bundle_mtime=st.st_mtime;daily_bundle_size=st.st_size;
         snprintf(status,sizeof status,"Today's update could not be opened. Your ink is safe.");return;
     }

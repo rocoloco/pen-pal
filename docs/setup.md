@@ -41,7 +41,9 @@ the Scribe. It expects a Debian trixie container with the ARM cross toolchain;
 docker run --rm -v "$PWD/client:/work" debian:trixie sh /work/build-isolated.sh
 ```
 
-The result is `client/build/hermes-native`. The author built and ran this on a
+The result is `client/build/hermes-native`. To see the app work without a Scribe, `client/check-daily.sh` replays a
+whole day (Today, an event page, asks and answers, offline, sheets, a new day) against a fake server and saves a
+screenshot at each stop. It needs gcc, the X11 headers and an X display (`Xvfb` works). The author built and ran this on a
 first-generation Scribe. I checked the host build and its self-test, and that the ARM target compiles, before
 publishing; I have not run this repo layout on a Scribe, and other Scribe models are untested.
 
@@ -54,7 +56,7 @@ and copy:
 |---|---|
 | `client/build/hermes-native` | `/mnt/us/hermes-native-live/hermes-native` |
 | `client/fonts/Caveat-Regular.ttf`, `OFL.txt` | `/mnt/us/hermes-native-live/fonts/` |
-| `device/ink-worker.sh`, `page-sweep.sh`, `done-sweep.sh` | `/mnt/us/hermes-native-live/` |
+| `device/ink-worker.sh`, `page-sweep.sh`, `done-sweep.sh`, `offline-today.wire` | `/mnt/us/hermes-native-live/` |
 | `device/Hermes-Ink.sh` | `/mnt/us/documents/` (it then appears in your library as "Pen Pal") |
 
 Then create two small files in `/mnt/us/hermes-native-live/`:

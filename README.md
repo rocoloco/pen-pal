@@ -100,7 +100,7 @@ behind a VPN or a TLS proxy. Do not expose it to the internet as it is.
 
 | Folder | What is in it |
 |---|---|
-| `client/` | The native app (C, X11). `build.sh` builds a host test binary and the ARM one. |
+| `client/` | The native app (C, X11). `build.sh` builds a host test binary and the ARM one; `check-daily.sh` replays a day against a fake server and saves screenshots. |
 | `device/` | Scripts that run on the Scribe: the launcher, the sender and the page backup. |
 | `server/` | The Python server, the Today builder and the tests (`python -m unittest`). |
 | `docs/` | Setup guide and notes on driving an e-ink panel from X11. |

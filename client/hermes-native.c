@@ -313,7 +313,6 @@ static double last_pen_at = -1e9;
 static int touch_kinds, touch_moves, touch_placed;   /* per stroke, for the swipe log */
 static unsigned int pen_coordinate_corrections;
 static volatile sig_atomic_t quitting;
-static int live_mode;
 static const char *state_path;
 static char status[160] = "Local demo - use the pen. Nothing is sent online.";
 static int canvas_top, canvas_bottom;
@@ -608,13 +607,6 @@ static void undo_stroke(void) {
     ink_cache_invalidate();
     do { --page.count; } while(page.count>page.sent&&!page.points[page.count].start);
 }
-static int send_demo(void) {
-    if(page.count==page.sent)return 0;
-    uint32_t old_sent=page.sent, old_replies=page.replies;
-    page.sent=page.count; ++page.replies;
-    if(save_page(state_path)) {page.sent=old_sent;page.replies=old_replies;return -1;}
-    return 1;
-}
 
 static void text_at(int x,int y,const char *s,int big) {
     XftDrawStringUtf8(textdraw,&black,big?heading:font,x,y,(const FcChar8 *)s,(int)strlen(s));
@@ -627,11 +619,7 @@ static void present(int x,int y,int w,int h) {
     XRaiseWindow(display,window);
     XCopyArea(display,backing,window,gc,x,y,w,h,x,y); XFlush(display);
 }
-static void status_only(void) {
-    if(live_mode){product_repaint();return;}
-    XSetForeground(display,gc,white_pixel);XFillRectangle(display,backing,gc,0,315,width,95);
-    text_at(50,370,status,0);present(0,315,width,95);
-}
+static void status_only(void) {product_repaint();}
 /* Style rendering. Each pen must differ by something the eye can resolve on
  * e-ink, not by one pixel of width:
  *   BALLPOINT uniform solid line, the reference pen
@@ -820,7 +808,6 @@ static void draw_segment(int x,int y,int px,int py,int begin,int erase,unsigned 
 static int pixel_x(Point p) {return 45+(int)((uint32_t)p.x*(width-90)/65535);}
 static int pixel_y(Point p) {return canvas_top+25+(int)((uint32_t)p.y*(canvas_bottom-canvas_top-50)/65535);}
 static void store_stroke(void);
-static const char *product_space_slug(void);
 static void product_save_reply_current(void);
 /* ---------------------------------------------------------------- *
  * Rendered-ink cache
@@ -878,52 +865,14 @@ static uint32_t product_open_stroke_start(void){
 /* panel_refresh() is defined below but called from the app layer (product-ui.h), so it
  * has to be declared before those headers are included. */
 static void panel_refresh(void);
-static void product_day_closed_load(void);
-static void product_close_the_day(void);
-#include "live-client.h"
+#include "device-files.h"
 #include "product-ui.h"
-static void repaint(void) {
-    if(live_mode){product_repaint();return;}
-    XSetForeground(display,gc,white_pixel);XFillRectangle(display,backing,gc,0,0,width,height);
-    XSetForeground(display,gc,black_pixel);XSetLineAttributes(display,gc,2,LineSolid,CapButt,JoinMiter);
-    text_at(50,85,"HERMES",1);
-    text_at(50,145,live_mode?"YOUR NOTE / CONNECTED TO HERMES":"INK PROTOTYPE / LOCAL DEMO",0);
-    const char *labels[]={erasing?"Write":"WRITE",erasing?"ERASE":"Erase","Undo","Send",live_mode?"New note":"Close","Close"};
-    int buttons=live_mode?6:5;
-    for(int i=0;i<buttons;++i) {
-        int x=30+i*(width-60)/buttons, w=(width-60)/buttons-16;
-        XDrawRectangle(display,backing,gc,x,190,w,110);text_at(x+24,258,labels[i],0);
-    }
-    text_at(50,370,status,0);
-    XDrawRectangle(display,backing,gc,25,canvas_top,width-50,canvas_bottom-canvas_top);
-    int px=0,py=0;
-    for(uint32_t i=0;i<page.count;++i) {
-        Point p=page.points[i];int x=pixel_x(p),y=pixel_y(p);
-        draw_segment(x,y,px,py,p.start,p.erase,p.tool,p.style,p.width);px=x;py=y;
-    }
-    if(live_mode)live_render();
-    else {
-    int answer_y=canvas_bottom+100;
-    text_at(50,answer_y,"HERMES / LOCAL TEST REPLY",0);
-    if(page.replies) {
-        char counter[120];snprintf(counter,sizeof counter,"Reply %u - your handwriting stays above.",page.replies);
-        text_at(50,answer_y+90,counter,0);
-        text_at(50,answer_y+165,"This response appeared in the same window.",0);
-        text_at(50,answer_y+240,"No browser. No new document. No network request.",0);
-        text_at(50,answer_y+315,"Add another note, then tap Send with your pen.",0);
-    } else {
-        text_at(50,answer_y+95,"Write above, then tap Send with your pen.",0);
-        text_at(50,answer_y+170,"A test reply will appear here immediately.",0);
-    }
-    }
-    text_at(50,height-45,live_mode?"Use the pen. Ink saves locally. Replies stay in this window.":"Ink saves on pen-up. Close and reopen to check recovery.",0);
-    present(0,0,width,height);
-}
+static void repaint(void) {product_repaint();}
 static void store_stroke(void) {
     if(!dirty)return;
-    if(save_page(state_path))snprintf(status,sizeof status,"SAVE FAILED - keep this window open; do not Send.");
-    else {dirty=0;snprintf(status,sizeof status,"%s",live_mode?"Ink saved on this Scribe.":"Saved on this Scribe. Local demo only.");}
-    if(!live_mode||dirty)status_only();
+    if(save_page(state_path))snprintf(status,sizeof status,"SAVE FAILED - keep this window open.");
+    else {dirty=0;snprintf(status,sizeof status,"Ink saved on this Scribe.");}
+    if(dirty)status_only();
 }
 /* ---- Clearing the panel ghost -------------------------------------------------
  * E-ink keeps a faint image of whatever sat under a white-out, and erasing IS
@@ -963,16 +912,7 @@ static void move_pen(int x,int y,int erase) {
          * with 120000 points already on the page every repaint was also slow.
          * Roll the page over instead: archive it and keep writing. */
         drawing=0;store_stroke();
-        if(daily_enabled){if(product_view==PRODUCT_TODAY)daily_turn();else daily_clear_page();product_repaint();return;}
-        if(product_archive_current()==0){
-            ink_cache_invalidate();
-            product_view=PRODUCT_NOTEBOOK;
-            snprintf(status,sizeof status,
-                     "Page full - new page started. The finished page is in HISTORY.");
-        } else {
-            snprintf(status,sizeof status,
-                     "Page full. Open HISTORY and use NEW PAGE to continue.");
-        }
+        if(product_view==PRODUCT_TODAY)daily_turn();else daily_clear_page();
         product_repaint();
         return;
     }
@@ -985,30 +925,8 @@ static void move_pen(int x,int y,int erase) {
     present(left,top,right-left,bottom-top);
     last_x=x;last_y=y;stroke_started=1;dirty=1;
 }
-static int button_at(int x,int y) {
-    if(live_mode)return product_button_at(x,y);
-    if(live_mode&&y>=height-190&&y<=height-100){if(x>=40&&x<=340)return 6;if(x>=width-340&&x<=width-40)return 7;}
-    if(y<190||y>300||x<30||x>=width-30)return -1;
-    int buttons=live_mode?6:5;
-    int i=(x-30)/((width-60)/buttons);
-    return i<buttons?i:-1;
-}
-static void activate(int button) {
-    if(live_mode){product_activate(button);return;}
-    if(button==0)erasing=0;
-    if(button==1)erasing=1;
-    if(button==2) {uint32_t sent=page.sent;if(live_mode&&live_job[0]&&live_cutoff>page.sent)page.sent=live_cutoff;undo_stroke();page.sent=sent;dirty=1;store_stroke();}
-    if(button==3) {
-        if(dirty)store_stroke();
-        int result=dirty?-1:(live_mode?live_submit():send_demo());
-        snprintf(status,sizeof status,"%s",result<0?"Could not save or start request. Ink kept locally.":live_mode?(live_job[0]?"Request saved. Connecting to Hermes...":"Add some new ink before Send."):(result?"Local reply ready. Your ink stays in place.":"Add some new ink before Send."));
-    }
-    if(live_mode&&button==4){if(live_new_note())snprintf(status,sizeof status,"Cannot start new note yet. Current ink is kept.");}
-    if((!live_mode&&button==4)||(live_mode&&button==5)){if(dirty)store_stroke();if(!dirty)quitting=1;}
-    if(live_mode&&button==6&&live_page>0)--live_page;
-    if(live_mode&&button==7&&live_page+1<live_pages)++live_page;
-    if(!quitting)repaint();
-}
+static int button_at(int x,int y) {return product_button_at(x,y);}
+static void activate(int button) {product_activate(button);}
 static void touch_reset(void) {
     touch_active=0;touch_contact=-1;touch_button=-1;touch_x=touch_y=0;touch_start_x=-1;
     touch_position_state=(PenPosition){0};touch_kinds=touch_moves=touch_placed=0;
@@ -1103,157 +1021,7 @@ static int self_test(void) {
     apply_stylus_tool_event(&tool);CHECK(hardware_eraser==1);
     tool.value=0;apply_stylus_tool_event(&tool);CHECK(hardware_eraser==0);
     puts("PASS: palm-coordinate regression, button coordinates, stale/missing axes, packed axes, non-pen rejection, invalid coordinates, focus reset");
-    /* Two Xs, two jobs, both always live. */
-    width=1860;height=2480;product_view=PRODUCT_NOTEBOOK;canvas_top=270;canvas_bottom=2290;
-    int hcx=product_header_close_left()+33,hcy=product_header_close_top()+33;
-    CHECK(product_button_at(hcx,hcy)==PRODUCT_CLOSE);          /* app X, popup shut */
-    product_popup=1;
-    CHECK(product_button_at(hcx,hcy)==PRODUCT_CLOSE);          /* app X, popup open */
-    CHECK(product_button_at(product_header_close_left(),product_header_close_top())==PRODUCT_CLOSE);
-    CHECK(product_button_at(product_header_close_left()-40,hcy)==PRODUCT_SPACES);  /* near, but not on it */
-    CHECK(product_button_at(product_popup_close_left()+33,product_popup_close_top()+33)==PRODUCT_POPUP_CLOSE);
-    CHECK(product_popup_close_hit(product_popup_close_left(),product_popup_close_top()));
-    CHECK(product_popup_close_hit(product_popup_close_left()+PRODUCT_POPUP_CLOSE,product_popup_close_top()+PRODUCT_POPUP_CLOSE));
-    CHECK(product_popup_close_hit(product_popup_close_left()-40,product_popup_close_top()+33)==0);
-    /* The list gained a TODAY row at the top, so every space row shifted down one. */
-    CHECK(product_button_at(930,1025)==PRODUCT_SPACE_IDEAS);
-    CHECK(product_button_at(PRODUCT_POPUP_LEFT+40,PRODUCT_POPUP_TOP+140)==PRODUCT_TODAY_ACTION);
-    CHECK(product_button_at(PRODUCT_POPUP_LEFT+40,PRODUCT_POPUP_TOP+340)==PRODUCT_SPACE_WORK);
-    CHECK(product_button_at(60,2600)==PRODUCT_SPACES);           /* dimmed area: dismisses */
-    CHECK(product_button_at(900,120)==PRODUCT_SPACES);           /* header elsewhere: dismisses */
-    product_popup=0;
-    CHECK(product_button_at(900,120)==PRODUCT_SPACES);           /* header centre: GO TO */
-    /* Today: three verbs per card, the card body still opens Focus, and the closing
-     * band is live only in the evening. Boxes and tap targets share one source. */
-    {
-        int card=0,chip=0;
-        product_view=PRODUCT_TODAY;product_popup=0;product_priority_count=3;
-        CHECK(product_button_at(width/2,height-80)==PRODUCT_WRITE);
-        CHECK(product_button_at(width*5/6,height-80)==PRODUCT_HISTORY_ACTION);
-        for(int i=0;i<3;++i){
-            snprintf(product_priorities[i].space,sizeof product_priorities[i].space,"work");
-            snprintf(product_priorities[i].title,sizeof product_priorities[i].title,"THING %d",i+1);
-            snprintf(product_priorities[i].next,sizeof product_priorities[i].next,"next step");
-            product_priorities[i].age[0]=0;
-        }
-        product_reactions_load();
-        CHECK(product_button_at(product_chip_left(0)+20,product_today_chip_y(0)+30)==PRODUCT_START_0);
-        CHECK(product_button_at(product_chip_left(1)+20,product_today_chip_y(1)+30)==PRODUCT_SNOOZE_1);
-        CHECK(product_button_at(product_chip_left(2)+20,product_today_chip_y(2)+30)==PRODUCT_DROP_2);
-        CHECK(product_button_at(product_chip_left(0)-40,product_today_chip_y(0)+30)==PRODUCT_NONE);   /* in the gap */
-        CHECK(product_chip_at(product_chip_left(2)+PRODUCT_CHIP_W+4,product_today_chip_y(0)+30,&card,&chip)==0);
-        CHECK(product_button_at(900,product_today_card_y(0)+40)==PRODUCT_PRIORITY_0);  /* body still opens Focus */
-        product_view=PRODUCT_FOCUS;
-        CHECK(product_button_at(300,height-80)==PRODUCT_EXIT_FOCUS);
-        CHECK(product_button_at(width*5/6,height-80)==PRODUCT_SEND);
-        product_view=PRODUCT_TODAY;
-        setenv("PRODUCT_EVENING","1",1);
-        CHECK(product_evening()==1);
-        CHECK(product_button_at(900,product_close_day_top()+50)==PRODUCT_CLOSE_DAY);
-        CHECK(product_close_day_hit(900,product_close_day_top()+50));
-        setenv("PRODUCT_EVENING","0",1);
-        CHECK(product_evening()==0);
-        CHECK(product_button_at(900,product_close_day_top()+50)!=PRODUCT_CLOSE_DAY);   /* band is absent, not just inert */
-        unsetenv("PRODUCT_EVENING");
-        /* A brief carrying the new fields parses them; an older one simply has none. */
-        char brief[]="GREETING\tGood morning\nDAY\t12\nSINCE\tlast note yesterday\nLOOPS\t3\nITEM\twork\twork-001\tFix the report\tDraft the intro\t3d\nWAIT\tWaiting on legal\nNEW\tHermes found a thing\n";
-        product_parse_brief(brief);
-        CHECK(!strcmp(product_day_number,"12"));
-        CHECK(!strcmp(product_since,"last note yesterday"));
-        CHECK(product_loops==3);
-        CHECK(product_priority_count==1&&!strcmp(product_priorities[0].id,"work-001")&&!strcmp(product_priorities[0].age,"3d"));
-        CHECK(product_waiting_count==1&&!strcmp(product_waiting[0],"Waiting on legal"));
-        CHECK(product_new_count==1);
-        char legacy[]="GREETING\tHi\nITEM\thome\tPaint the door\tBuy paint\n";
-        product_parse_brief(legacy);
-        CHECK(product_day_number[0]==0&&product_loops==0&&!product_priorities[0].age[0]);
-        snprintf(product_since,sizeof product_since,"3 days since your last note");
-        CHECK(product_needs_resume()==1);
-        snprintf(product_since,sizeof product_since,"last note yesterday");
-        CHECK(product_needs_resume()==0);
-        product_since[0]=0;live_body[0]=0;
-        CHECK(product_reply_needs_confirmation()==0);
-        snprintf(live_body,sizeof live_body,"I read:\nPrepare the draft.\n\nHERMES:\nHEARD: a draft needs sending.\nPREPARE: Send the draft.");
-        CHECK(product_reply_needs_confirmation()==1);
-        product_view=PRODUCT_NOTEBOOK;
-        CHECK(product_button_at(width/2,height-80)==PRODUCT_CONFIRM_ACTION);
-        snprintf(live_body,sizeof live_body,"I read:\nPREPARE: is just handwriting.\n\nHERMES:\nNEXT: Keep writing.");
-        CHECK(product_reply_needs_confirmation()==0);
-        CHECK(product_button_at(width/2,height-80)==PRODUCT_DONE);
-        live_body[0]=0;
-        product_priority_count=0;product_waiting_count=product_new_count=0;
-        product_reactions[0]=0;product_reactions_loaded=0;product_view=PRODUCT_NOTEBOOK;
-    }
-    /* Header values are percent-encoded, and the intent follows the page. */
-    {
-        char encoded[400];
-        product_url_encode("CALL THE PLUMBER \xc2\xb7 3d", encoded, sizeof encoded);
-        CHECK(!strcmp(encoded, "CALL%20THE%20PLUMBER%20%C2%B7%203d"));
-        product_url_encode("", encoded, sizeof encoded);
-        CHECK(encoded[0] == 0);
-        product_url_encode("a-z.A_Z~9", encoded, sizeof encoded);
-        CHECK(!strcmp(encoded, "a-z.A_Z~9"));
-        snprintf(product_topic, sizeof product_topic, "Fix the CTEM brief");
-        CHECK(!strcmp(product_send_intent(), "ask"));
-        snprintf(product_topic, sizeof product_topic, "%s", product_close_day_topic);
-        CHECK(!strcmp(product_send_intent(), "debrief"));
-        product_send_context();
-        CHECK(!strcmp(live_ctx_intent, "debrief"));
-        CHECK(live_ctx_notebook[0] != 0);
-        product_topic[0] = 0;
-    }
-    /* Reactions are dated, so Today can count what was closed TODAY and DONE can hide
-     * the card it just closed. */
-    {
-        char saved_root[1024];snprintf(saved_root,sizeof saved_root,"%s",product_root);
-        snprintf(product_root,sizeof product_root,"/tmp");
-        unlink("/tmp/today.react");product_reactions[0]=0;product_reactions_loaded=0;
-        product_reactions_add("done","work-001","Clarify garbled work note");
-        product_reactions_add("snooze","home-002","Call the accountant");
-        CHECK(product_reactions_count_today("done")==1);
-        CHECK(product_reactions_count_today("snooze")==1);
-        CHECK(product_reactions_count_today("drop")==0);
-        ProductPriority reacted[3]={0};
-        snprintf(reacted[0].id,sizeof reacted[0].id,"work-001");
-        snprintf(reacted[0].title,sizeof reacted[0].title,"Clarify garbled work note");
-        snprintf(reacted[1].id,sizeof reacted[1].id,"home-002");
-        snprintf(reacted[1].title,sizeof reacted[1].title,"Call the accountant");
-        snprintf(reacted[2].id,sizeof reacted[2].id,"home-003");
-        snprintf(reacted[2].title,sizeof reacted[2].title,"Plan the weekend");
-        CHECK(product_card_hidden(&reacted[0]));
-        CHECK(product_card_hidden(&reacted[1]));
-        CHECK(!product_card_hidden(&reacted[2]));
-        /* A reply with no trailing newline and no TOMORROW line must not walk off
-         * the end of the buffer (the day-closed crash of 2026-09-19). */
-        {
-            char rpath[1024],out[64];
-            static const char no_nl[]="no tomorrow here";
-            static const char with_line[]="line one\nTOMORROW: buy paint";
-            CHECK(!product_join(rpath,sizeof rpath,product_root,"fuzz-tomorrow.reply"));
-            CHECK(!product_file_write(rpath,no_nl,sizeof no_nl-1));
-            CHECK(product_tomorrow_in(rpath,out,sizeof out)==0);
-            CHECK(!product_file_write(rpath,with_line,sizeof with_line-1));
-            CHECK(product_tomorrow_in(rpath,out,sizeof out)==1&&!strcmp(out,"buy paint"));
-            unlink(rpath);
-        }
-        /* A page's topic names its card, compared leniently because the brief's
-         * wording drifts between days. */
-        product_priority_count=3;
-        const char *cards[3]={"Clarify garbled work note","Call the accountant","Plan the weekend"};
-        for(int i=0;i<3;++i){snprintf(product_priorities[i].id,sizeof product_priorities[i].id,"card-%d",i);snprintf(product_priorities[i].title,sizeof product_priorities[i].title,"%s",cards[i]);}
-        snprintf(product_topic,sizeof product_topic,"Clarify the garbled work Note");
-        CHECK(product_topic_card()==0);
-        snprintf(product_topic,sizeof product_topic,"Call accountant");
-        CHECK(product_topic_card()==1);
-        snprintf(product_topic,sizeof product_topic,"CLOSE THE DAY");
-        CHECK(product_topic_card()==-1);
-        snprintf(product_topic,sizeof product_topic,"Plan");
-        CHECK(product_topic_card()==-1);          /* too short to be a match */
-        product_topic[0]=0;product_priority_count=0;
-        unlink("/tmp/today.react");
-        snprintf(product_root,sizeof product_root,"%s",saved_root);
-        product_reactions[0]=0;product_reactions_loaded=0;
-    }
+    width=1860;height=2480;canvas_top=270;canvas_bottom=2290;
     /* The eraser now DELETES what it covers: nothing is left for any renderer to show,
      * the page's point budget is freed, and ink written after an erase survives. */
     {
@@ -1300,11 +1068,10 @@ static int self_test(void) {
         memset(&page,0,sizeof page);
         (void)before;(void)with_erase;
     }
-    /* Erasing while a reply is in flight must not persist a page the loader refuses.
-     * live_submit() snapshots live_cutoff=page.count at submit time; if he erases before
-     * the answer lands, ink_compact_from() shrinks page.count under that cutoff. The reply
-     * then acks the stale, larger value -- and a saved sent>count is rejected by
-     * load_page(), so on the next start the writer is locked out of his own notebook. */
+    /* Erasing while an answer is in flight must not persist a page the loader refuses.
+     * An ask snapshots the watermark (page.sent) when it is sent; if the writer erases before
+     * the answer lands, ink_compact_from() shrinks page.count under that watermark. Saving the
+     * stale, larger value would be rejected by load_page(), locking the writer out of their notebook. */
     {
         Page *kept_buffer=ink_undo_page;
         int kept_valid=ink_undo_valid;
@@ -1315,82 +1082,23 @@ static int self_test(void) {
         for(int i=0;i<20;++i)page.points[page.count++]=(Point){(uint16_t)(10000+i*50),(uint16_t)30000,1,0,0,0,4};
         for(int i=0;i<20;++i)page.points[page.count++]=(Point){(uint16_t)(40000+i*50),(uint16_t)30000,1,0,0,0,4};
         page.sent=page.count;page.replies=0;
-        live_cutoff=page.count;                      /* the watermark live_submit() captured */
-        /* He erases the first cluster while the answer is in flight. */
+        uint32_t cutoff=page.count;                  /* the watermark the ask captured */
+        /* The writer erases the first cluster while the answer is in flight. */
         for(int i=0;i<20;++i)page.points[page.count++]=(Point){(uint16_t)(10000+i*50),(uint16_t)30000,i==0,1,2,0,28};
         stroke_erasing=1;
         CHECK(ink_erase_snapshot()==0);
         CHECK(ink_compact_from(ink_undo_page)==40);  /* the 20 eraser points + the 20 they covered */
         stroke_erasing=0;
         CHECK(page.count==20);                       /* the page really did shrink under the cutoff */
-        page.sent=live_cutoff;                       /* the reply lands and acks that stale cutoff */
+        page.sent=cutoff;                            /* the reply lands and acks that stale cutoff */
         CHECK(save_page(path)==0);
         CHECK(page.sent<=page.count);                /* the writer clamps the watermark to the ink */
         CHECK(load_page(path)==0);                   /* so the page still opens: no lockout */
         CHECK(page.count==20);
         free(ink_undo_page);ink_undo_page=kept_buffer;ink_undo_valid=kept_valid;
         memset(&page,0,sizeof page);
-        live_cutoff=0;
         unlink(path);
     }
-    /* Confirm/Cancel is a command job, not a page submission. New ink written
-     * after PREPARE must remain unsent even when the command reply completes. */
-    {
-        memset(&page,0,sizeof page);page.count=3;page.sent=2;
-        live_cutoff=3;live_command_mode=1;
-        CHECK(live_acknowledge_page()==0);
-        CHECK(page.sent==2&&page.count==3);
-        live_command_mode=0;live_cutoff=0;memset(&page,0,sizeof page);
-    }
-    /* The day can be closed, and the closure must be visible and settled. */
-    {
-        char saved_root[1024];snprintf(saved_root,sizeof saved_root,"%s",product_root);
-        snprintf(product_root,sizeof product_root,"/tmp");
-        char today[16];product_today_stamp(today);
-        unlink("/tmp/day.closed");product_day_closed[0]=0;
-        product_day_closed_load();
-        CHECK(!product_day_closed_today());                  /* no marker: day still open */
-        product_close_the_day();
-        CHECK(product_day_closed_today());                   /* marking it sticks for today */
-        product_day_closed[0]=0;product_day_closed_load();
-        CHECK(product_day_closed_today());                   /* and it survives a reload */
-        snprintf(product_day_closed,sizeof product_day_closed,"2020-01-01");
-        CHECK(!product_day_closed_today());                  /* yesterday's closure is not today's */
-        /* Closing the day hides the band and shows what he promised for tomorrow. */
-        snprintf(product_day_closed,sizeof product_day_closed,"%s",today);
-        setenv("PRODUCT_EVENING","1",1);
-        CHECK(product_close_day_hit(900,product_close_day_top()+50)==0);
-        unsetenv("PRODUCT_EVENING");
-        unlink("/tmp/day.closed");
-        product_day_closed[0]=0;
-        /* Tomorrow's one thing comes out of last night's debrief, if there is one. */
-        char reply[]="I read:\nwhat moved\n\nHERMES:\nWHAT MOVED: things\nTOMORROW: send the LOC to legal\nLOOPS: none\n";
-        CHECK(product_file_write("/tmp/inbox.reply",reply,strlen(reply))==0);
-        char tomorrow[220];product_tomorrow_line(tomorrow,sizeof tomorrow);
-        CHECK(!strcmp(tomorrow,"send the LOC to legal"));
-        unlink("/tmp/inbox.reply");
-        /* The closing page is usually archived, so the promise has to be found in
-         * History as well -- newest file wins. */
-        mkdir("/tmp/history", 0700);
-        unlink("/tmp/history/20200101-000000-inbox.reply");
-        unlink("/tmp/history/20260913-195148-inbox.reply");
-        snprintf(product_history_dir, sizeof product_history_dir, "%s", "/tmp/history");
-        char old_reply[] = "HERMES:\nTOMORROW: an older promise\n";
-        char new_reply[] = "HERMES:\nTOMORROW: send the LOC to legal\n";
-        CHECK(product_file_write("/tmp/history/20200101-000000-inbox.reply", old_reply, strlen(old_reply)) == 0);
-        CHECK(product_file_write("/tmp/history/20260913-195148-inbox.reply", new_reply, strlen(new_reply)) == 0);
-        product_tomorrow_line(tomorrow, sizeof tomorrow);
-        CHECK(!strcmp(tomorrow, "send the LOC to legal"));      /* the newest debrief wins */
-        unlink("/tmp/history/20200101-000000-inbox.reply");
-        unlink("/tmp/history/20260913-195148-inbox.reply");
-        product_history_dir[0] = 0;
-        product_tomorrow_line(tomorrow,sizeof tomorrow);
-        CHECK(tomorrow[0]==0);                               /* no reply: no invented promise */
-        snprintf(product_root,sizeof product_root,"%s",saved_root);
-    }
-    CHECK(product_button_at(900,1025)==PRODUCT_NONE);            /* popup is gone */
-    CHECK(product_button_at(930,2400)==PRODUCT_DONE);            /* footer middle is now DONE */
-    CHECK(product_button_at(300,2400)==PRODUCT_HISTORY_ACTION);  /* left slot unchanged */
     /* Powerd event lines, exactly as the device emits them (from app.log on the
      * Scribe). The reader must map these without blocking on the pipe: the first
      * version used fgets() on a pipe that is empty almost always, which froze the
@@ -1411,22 +1119,21 @@ static int self_test(void) {
         CHECK(read(fds[0],scratch,sizeof scratch)<0&&(errno==EAGAIN||errno==EWOULDBLOCK));
         close(fds[0]);close(fds[1]);
     }
-    CHECK(load_page(path)==0);CHECK(page.count==0);CHECK(send_demo()==0);
+    CHECK(load_page(path)==0);CHECK(page.count==0);
     CHECK(append_point(1,2,1,0)==0);CHECK(append_point(3,4,0,0)==0);
     CHECK(save_page(path)==0);memset(&page,0,sizeof page);CHECK(load_page(path)==0);
     CHECK(page.count==2&&page.points[1].x==3&&page.points[1].y==4);
-    CHECK(send_demo()==1);CHECK(page.count==2&&page.sent==2&&page.replies==1);
-    CHECK(send_demo()==0);undo_stroke();CHECK(page.count==2);
+    page.sent=page.count;CHECK(save_page(path)==0);                /* sent ink is never undone */
+    undo_stroke();CHECK(page.count==2);
     CHECK(append_point(5,6,1,1)==0);CHECK(append_point(7,8,0,1)==0);
     undo_stroke();CHECK(page.count==2);CHECK(append_point(9,10,1,0)==0);
-    state_path="/nonexistent/hermes-demo/page";CHECK(send_demo()==-1);
-    CHECK(page.sent==2&&page.replies==1&&page.count==3);state_path=path;
-    CHECK(send_demo()==1);memset(&page,0,sizeof page);CHECK(load_page(path)==0);
-    CHECK(page.count==3&&page.sent==3&&page.replies==2);
+    state_path="/nonexistent/hermes-demo/page";CHECK(save_page(state_path)==-1);   /* a failed save reports it */
+    state_path=path;CHECK(save_page(path)==0);memset(&page,0,sizeof page);CHECK(load_page(path)==0);
+    CHECK(page.count==3&&page.sent==2);
     FILE *f=fopen(path,"ab");CHECK(f!=NULL);fputc('x',f);fclose(f);
     CHECK(load_page(path)==-1);CHECK(page.count==3);
     page.count=MAX_POINTS;CHECK(append_point(1,1,1,0)==-1);
-    unlink(path);rmdir(dir);puts("PASS: save/reload, same-page reply, duplicate Send, undo boundary, save failure, malformed state, ink bound");return 0;
+    unlink(path);rmdir(dir);puts("PASS: save/reload, undo boundary, save failure, malformed state, ink bound");return 0;
 }
 /* Detach a forked child from the framework's view of this document.
  *
@@ -1489,10 +1196,8 @@ static void hand_back_screen(void) {
 }
 int main(int argc,char **argv) {
     int probe=argc>1&&!strcmp(argv[1],"--probe");
-    int smoke=argc>1&&!strcmp(argv[1],"--smoke");
     if(argc>1&&!strcmp(argv[1],"--self-test"))return self_test();
-    live_mode=getenv("HERMES_DAILY_FILE")||(getenv("HERMES_INK_LIVE")&&!strcmp(getenv("HERMES_INK_LIVE"),"1"));
-    state_path=getenv("HERMES_INK_STATE");if(!state_path)state_path=live_mode?"/mnt/us/hermes-native-live/page.ink":"/mnt/us/hermes-native-prototype/page.ink";
+    state_path=getenv("HERMES_INK_STATE");if(!state_path)state_path="/mnt/us/hermes-native-live/page.ink";
     display=XOpenDisplay(NULL);if(!display){fprintf(stderr,"Cannot open native X display\n");return 1;}
     int screen=DefaultScreen(display);width=DisplayWidth(display,screen);height=DisplayHeight(display,screen);
     printf("screen=%dx%d depth=%d\n",width,height,DefaultDepth(display,screen));
@@ -1502,17 +1207,18 @@ int main(int argc,char **argv) {
     for(int i=0;i<n;++i){printf("input id=%d name=%s use=%d\n",devices[i].deviceid,devices[i].name,devices[i].use);if(!strcmp(devices[i].name,"stylus"))pen_id=devices[i].deviceid;if(!strcmp(devices[i].name,"multitouch"))touch_id=devices[i].deviceid;}
     XIFreeDeviceInfo(devices);
     if(probe){XCloseDisplay(display);return pen_id<0?2:0;}
-    if(pen_id<0&&!smoke){fprintf(stderr,"No known stylus device; refusing finger-only fallback\n");return 1;}
+    if(!getenv("HERMES_DAILY_FILE")){fprintf(stderr,"HERMES_DAILY_FILE is not set: the launcher passes today's bundle\n");return 1;}
+    if(pen_id<0){fprintf(stderr,"No known stylus device; refusing finger-only fallback\n");return 1;}
     if(width<900||height<1400||width>=height){fprintf(stderr,"First prototype requires portrait layout\n");return 1;}
-    if(live_mode&&product_prepare_storage()){fprintf(stderr,"Could not prepare Hermes workspace; existing notes were not changed\n");return 1;}
-    if(!smoke&&pen_id>=0) {
+    if(product_prepare_storage()){fprintf(stderr,"Could not prepare Hermes workspace; existing notes were not changed\n");return 1;}
+    if(pen_id>=0) {
         stylus_event_fd=open_stylus_event_device();
         if(stylus_event_fd>=0)fprintf(stderr,"hardware eraser: direct evdev tool detection enabled\n");
         else fprintf(stderr,"hardware eraser: evdev tool detection unavailable; toolbar eraser remains available\n");
     }
     int lock=-1;
-    if(!smoke) {
-        char lockpath[1024];const char *lock_target=live_mode?product_root:state_path;
+    {
+        char lockpath[1024];const char *lock_target=product_root;
         if(snprintf(lockpath,sizeof lockpath,"%s.lock",lock_target)>=(int)sizeof lockpath)return 1;
         lock=open(lockpath,O_CREAT|O_RDWR,0600);
         if(lock<0||flock(lock,LOCK_EX|LOCK_NB)){fprintf(stderr,"State unavailable or prototype already open\n");return 1;}
@@ -1532,7 +1238,7 @@ int main(int argc,char **argv) {
     XClassHint hints={"hermes-inkprototype","HermesInkPrototype"};XSetClassHint(display,window,&hints);
     Atom close_atom=XInternAtom(display,"WM_DELETE_WINDOW",False);XSetWMProtocols(display,window,&close_atom,1);
     XSelectInput(display,window,ExposureMask|StructureNotifyMask|FocusChangeMask);
-    if(!smoke){unsigned char mask[XIMaskLen(XI_LASTEVENT)]={0};XISetMask(mask,XI_ButtonPress);XISetMask(mask,XI_ButtonRelease);XISetMask(mask,XI_Motion);XISetMask(mask,XI_TouchBegin);XISetMask(mask,XI_TouchUpdate);XISetMask(mask,XI_TouchEnd);XIEventMask masks[2];int mask_count=0;if(pen_id>=0)masks[mask_count++]=(XIEventMask){pen_id,sizeof mask,mask};if(touch_id>=0)masks[mask_count++]=(XIEventMask){touch_id,sizeof mask,mask};XISelectEvents(display,window,masks,mask_count);}
+    {unsigned char mask[XIMaskLen(XI_LASTEVENT)]={0};XISetMask(mask,XI_ButtonPress);XISetMask(mask,XI_ButtonRelease);XISetMask(mask,XI_Motion);XISetMask(mask,XI_TouchBegin);XISetMask(mask,XI_TouchUpdate);XISetMask(mask,XI_TouchEnd);XIEventMask masks[2];int mask_count=0;if(pen_id>=0)masks[mask_count++]=(XIEventMask){pen_id,sizeof mask,mask};if(touch_id>=0)masks[mask_count++]=(XIEventMask){touch_id,sizeof mask,mask};XISelectEvents(display,window,masks,mask_count);}
     gc=XCreateGC(display,window,0,NULL);
     backing=XCreatePixmap(display,window,width,height,DefaultDepth(display,screen));
     textdraw=XftDrawCreate(display,backing,DefaultVisual(display,screen),DefaultColormap(display,screen));
@@ -1547,17 +1253,14 @@ int main(int argc,char **argv) {
      * under every waveform and the eye integrates it back to grey. */
     pencil_pixel=black_pixel;
     canvas_top=430;canvas_bottom=height*60/100;
-    if(daily_enabled){hermes_hand_open(screen);ask_queue_load();daily_enter_today();}
-    if(live_mode&&!daily_enabled){if(live_init()){fprintf(stderr,"Pending state invalid; preserved without overwrite\n");return 1;}product_load_reply();product_brief_start();product_crash_recovery_notice();}
-    if(smoke)snprintf(status,sizeof status,"DISPLAY TEST ONLY - closes automatically in 8 seconds.");
+    hermes_hand_open(screen);ask_queue_load();daily_enter_today();
     signal(SIGINT,on_signal);signal(SIGTERM,on_signal);signal(SIGHUP,on_signal);
     signal(SIGUSR1,on_reopen);
-    if(!smoke)power_watch_start();
-    if(!smoke)power_key_fd=open_power_key_device();
-    if(!smoke&&power_key_fd<0)fprintf(stderr,"power key: no bd71828-pwrkey device; sleep screen follows powerd events only\n");
+    power_watch_start();
+    power_key_fd=open_power_key_device();
+    if(power_key_fd<0)fprintf(stderr,"power key: no bd71828-pwrkey device; sleep screen follows powerd events only\n");
     XMapRaised(display,window);request_fullscreen_above();XFlush(display);repaint();
-    double deadline=seconds()+(smoke?8:900);
-    while(!quitting&&(live_mode||seconds()<deadline)) {
+    while(!quitting) {
         drain_stylus_tool_events();
         while(XPending(display)) {
             XEvent e;XNextEvent(display,&e);
@@ -1572,7 +1275,7 @@ int main(int argc,char **argv) {
                     int x=0,y=0;
                     int positioned=pen_position(&pen_position_state,p,pen_id,width,height,&x,&y);
                     if(positioned&&(fabs(p->event_x-x)>2||fabs(p->event_y-y)>2))++pen_coordinate_corrections;
-                    if(e.xcookie.evtype==XI_ButtonPress&&p->detail==1){drain_stylus_tool_events();stroke_erasing=erasing||hardware_eraser;pen_button=positioned?button_at(x,y):-1;if(positioned&&pen_button<0&&live_mode&&!daily_enabled&&product_view==PRODUCT_TODAY&&!product_popup){if(product_switch_space(3)==0)product_repaint();}drawing=positioned&&pen_button<0&&(!live_mode||product_can_draw_at(x,y));stroke_on_blank=drawing&&daily_enabled&&!page.count&&!answer_count;stroke_started=0;if(drawing)move_pen(x,y,stroke_erasing);}
+                    if(e.xcookie.evtype==XI_ButtonPress&&p->detail==1){drain_stylus_tool_events();stroke_erasing=erasing||hardware_eraser;pen_button=positioned?button_at(x,y):-1;drawing=positioned&&pen_button<0&&product_can_draw_at(x,y);stroke_on_blank=drawing&&!page.count&&!answer_count;stroke_started=0;if(drawing)move_pen(x,y,stroke_erasing);}
                     if(e.xcookie.evtype==XI_Motion&&drawing){if(positioned)move_pen(x,y,stroke_erasing);else stroke_started=0;}
                     /* Always finish on pen-up, even if its coordinates are missing. */
                     if(e.xcookie.evtype==XI_ButtonRelease&&p->detail==1){
@@ -1594,8 +1297,7 @@ int main(int argc,char **argv) {
         if(reopen_requested){reopen_requested=0;XMapRaised(display,window);XSetInputFocus(display,window,RevertToParent,CurrentTime);XFlush(display);repaint();}
         power_key_drain();
         power_watch_tick();
-        if(live_mode&&!daily_enabled&&!smoke&&!drawing&&!sleeping){live_tick();product_brief_tick();}
-        if(daily_enabled&&!smoke&&!drawing&&!sleeping)daily_tick();
+        if(!drawing&&!sleeping)daily_tick();
         fd_set fds;FD_ZERO(&fds);int maxfd=ConnectionNumber(display);FD_SET(maxfd,&fds);
         if(stylus_event_fd>=0){FD_SET(stylus_event_fd,&fds);if(stylus_event_fd>maxfd)maxfd=stylus_event_fd;}
         if(power_key_fd>=0){FD_SET(power_key_fd,&fds);if(power_key_fd>maxfd)maxfd=power_key_fd;}
@@ -1603,11 +1305,9 @@ int main(int argc,char **argv) {
         struct timeval wait={0,50000};select(maxfd+1,&fds,NULL,NULL,&wait);
     }
     if(dirty&&save_page(state_path))fprintf(stderr,"Final save failed\n");
-    if(live_child>0){kill(live_child,SIGTERM);while(waitpid(live_child,NULL,0)<0&&errno==EINTR){};}
     if(ask_child>0){kill(ask_child,SIGTERM);while(waitpid(ask_child,NULL,0)<0&&errno==EINTR){};}
     if(power_watch_pid>0){kill(power_watch_pid,SIGTERM);while(waitpid(power_watch_pid,NULL,0)<0&&errno==EINTR){};}
     if(power_watch)fclose(power_watch);
-    if(product_brief_child>0){kill(product_brief_child,SIGTERM);while(waitpid(product_brief_child,NULL,0)<0&&errno==EINTR){}}
     XftDrawDestroy(textdraw);XftFontClose(display,font);XftFontClose(display,heading);XftFontClose(display,small);
     XftColorFree(display,DefaultVisual(display,screen),DefaultColormap(display,screen),&black);XftColorFree(display,DefaultVisual(display,screen),DefaultColormap(display,screen),&white_text);
     XFreePixmap(display,backing);XFreeGC(display,gc);

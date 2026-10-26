@@ -11,11 +11,9 @@
 BASE=/mnt/us/hermes-native-live
 SERVER=$(cat "$BASE/server.url" 2>/dev/null || echo http://127.0.0.1:8792)
 [ -x "$BASE/hermes-native" ] || exit 1
-# Today's real bundle (calendar + tasks) is composed by the server and fetched to
-# today.wire over the tunnel. It is used whenever its DATE is today; the synthetic
-# preview (daily-demo.enabled + demo-daily.wire) is only the fallback before the first
-# real fetch. Fetching never blocks launch for long: a quick try only when today's
-# bundle is missing, then the background loop below keeps it fresh.
+# Today (calendar events and tasks) is composed by the server and fetched to today.wire.
+# Fetching never blocks launch for long: a quick try only when today's bundle is
+# missing, then the background loop below keeps it fresh.
 TODAY_FILE="$BASE/today.wire"
 today_is_current() { grep -qx "DATE	$(date +%Y-%m-%d)" "$TODAY_FILE" 2>/dev/null; }
 fetch_today() {
@@ -36,16 +34,12 @@ fetch_today() {
     return 0
 }
 today_is_current || fetch_today 8
-DAILY_DEMO=0
-DAILY_DEMO_FILE="$BASE/demo-daily.wire"
-# The last real bundle beats the synthetic one, even when it is an earlier day's: the
-# app says so on Today and reloads in place as soon as today's arrives.
-if [ -s "$TODAY_FILE" ]; then
-    DAILY_DEMO=1
-    DAILY_DEMO_FILE="$TODAY_FILE"
-elif [ -e "$BASE/daily-demo.enabled" ] && [ -s "$DAILY_DEMO_FILE" ]; then
-    DAILY_DEMO=1
-fi
+# The last bundle is used even when it is an earlier day's: the app says so on Today and
+# reloads in place as soon as today's arrives. Before the first fetch ever works,
+# offline-today.wire (a blank day, copied to the Scribe with the other files) stands in for
+# today.wire, so the app is usable and every page written on it is kept.
+[ -s "$TODAY_FILE" ] || cp "$BASE/offline-today.wire" "$TODAY_FILE" 2>/dev/null || exit 1
+DAILY_FILE="$TODAY_FILE"
 # Opening the launcher again should be harmless while the full-screen app is alive.
 existing=$(pidof hermes-native 2>/dev/null || true)
 if [ -n "$existing" ]; then
@@ -54,24 +48,6 @@ if [ -n "$existing" ]; then
         sleep 1
     done
     exit 0
-fi
-# FILMING: film-today.wire is a made-up day. While its DATE is today it replaces the
-# real bundle, so nothing private is on screen, and it lapses by itself at midnight.
-# The app's workspace path is fixed, so the sample day gets its own by mounting
-# film-workspace over it: the real pages are neither shown nor touched, and the sweeps
-# below stay off, so sample ink never reaches the vault or TickTick. Star asks still go
-# to Hermes. A mount left behind by a crash is dropped first, and a launch that cannot
-# drop it stops here: real ink must never land in the sample workspace.
-FILM=0
-FILM_FILE="$BASE/film-today.wire"
-umount "$BASE/daily-workspace" 2>/dev/null || umount -l "$BASE/daily-workspace" 2>/dev/null || true
-grep -q " $BASE/daily-workspace " /proc/mounts && exit 1
-if grep -qx "DATE	$(date +%Y-%m-%d)" "$FILM_FILE" 2>/dev/null &&
-   mkdir -p "$BASE/film-workspace" "$BASE/daily-workspace" &&
-   mount -o bind "$BASE/film-workspace" "$BASE/daily-workspace"; then
-    FILM=1
-    DAILY_DEMO=1
-    DAILY_DEMO_FILE="$FILM_FILE"
 fi
 # Kindle's Home UI is itself an X11 client, so a managed window can end up beneath
 # it. This launcher used to freeze the window manager (killall -STOP awesome) to
@@ -94,9 +70,6 @@ CRASH_MARKER="$BASE/crash.marker"
 MAX_RELAUNCH=3
 restore_kindle_ui() {
     rm -f "$RUN_SENTINEL"
-    if [ "$FILM" = 1 ]; then
-        umount "$BASE/daily-workspace" 2>/dev/null || umount -l "$BASE/daily-workspace" 2>/dev/null || true
-    fi
     if [ "$CVM_STOPPED" = 1 ]; then
         killall -CONT cvm 2>/dev/null || true
     fi
@@ -125,7 +98,6 @@ trap restore_kindle_ui EXIT HUP INT TERM
 # the app is open, and on the way out. page-sweep.sh only sends pages whose bytes
 # changed, so this is cheap, and it never blocks writing.
 page_sweep() {
-    [ "$FILM" = 1 ] && return 0
     [ -f "$BASE/page-sweep.sh" ] && ( sh "$BASE/page-sweep.sh" >>"$BASE/page-sweep.log" 2>&1 & )
     return 0
 }
@@ -156,18 +128,14 @@ LAUNCHER=$$
         now=$(date +%s)
         [ $((now - last)) -gt 180 ] && page_sweep
         last=$now
-        [ "$FILM" = 0 ] && ls "$BASE"/daily-workspace/daily/*/done.list >/dev/null 2>&1 &&
+        ls "$BASE"/daily-workspace/daily/*/done.list >/dev/null 2>&1 &&
             sh "$BASE/done-sweep.sh" >>"$BASE/done-sweep.log" 2>&1
         today_is_current || fetch_today 15     # a new day (or a wake after one): fetch until it lands
     done
 ) &
 
 start_app() {
-    if [ "$DAILY_DEMO" = 1 ]; then
-        env DISPLAY=:0 HERMES_INK_LIVE=1 HERMES_DAILY_FILE="$DAILY_DEMO_FILE" HERMES_INK_STATE="$BASE/daily-demo-state.ink" "$BASE/hermes-native" >>"$BASE/app.log" 2>&1 &
-    else
-        env DISPLAY=:0 HERMES_INK_LIVE=1 "$BASE/hermes-native" >>"$BASE/app.log" 2>&1 &
-    fi
+    env DISPLAY=:0 HERMES_INK_LIVE=1 HERMES_DAILY_FILE="$DAILY_FILE" HERMES_INK_STATE="$BASE/daily-demo-state.ink" "$BASE/hermes-native" >>"$BASE/app.log" 2>&1 &
     app_pid=$!
     i=0
     while kill -0 "$app_pid" 2>/dev/null && [ "$i" -lt 20 ]; do
@@ -222,5 +190,5 @@ while :; do
     sleep 2
 done
 page_sweep
-[ "$FILM" = 0 ] && [ -f "$BASE/done-sweep.sh" ] && ( sh "$BASE/done-sweep.sh" >>"$BASE/done-sweep.log" 2>&1 & )
+[ -f "$BASE/done-sweep.sh" ] && ( sh "$BASE/done-sweep.sh" >>"$BASE/done-sweep.log" 2>&1 & )
 exit "$rc"

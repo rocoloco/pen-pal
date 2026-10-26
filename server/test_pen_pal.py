@@ -208,7 +208,7 @@ class OwnKeyModeTests(unittest.TestCase):
         self.assertEqual((job["state"], job["answer"]), ("done", "Equal parts compost and topsoil.\nNext: ask Alex."))
         messages = self.sent[0]["messages"]
         self.assertEqual([m["role"] for m in messages], ["system", "user"])
-        self.assertIn("their meeting 'Garden plans' (10:00 - 10:45)", messages[1]["content"])
+        self.assertIn("their calendar event 'Garden plans' (10:00 - 10:45)", messages[1]["content"])
         self.assertIn("<<<NOTE\nwhat soil mix for tomatos?\nNOTE>>>", messages[1]["content"])
 
     def test_the_next_page_sees_the_last_exchange_and_an_old_one_is_forgotten(self):

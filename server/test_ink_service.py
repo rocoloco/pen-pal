@@ -146,7 +146,7 @@ class Tests(unittest.TestCase):
     def test_page_ask_is_a_warm_note_with_page_context(self):
         text = build_ask_text("what soil mix for tomatos?", "inbox", {
             "notebook": "page|meeting|10:00 - 10:45", "topic": "Garden plans with Alex", "intent": "ask"})
-        self.assertIn("notes page for their meeting 'Garden plans with Alex' (10:00 - 10:45)", text)
+        self.assertIn("notes page for their calendar event 'Garden plans with Alex' (10:00 - 10:45)", text)
         self.assertIn("thoughtful friend", text)
         self.assertIn("'Next:'", text)
         self.assertIn("never write a PREPARE line", text)
