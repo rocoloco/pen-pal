@@ -17,7 +17,7 @@ import sys
 import time
 import urllib.request
 import uuid
-from datetime import date, datetime, time as clock, timedelta, timezone
+from datetime import date, datetime, time as clock, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 

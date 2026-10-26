@@ -270,6 +270,12 @@ class HandlerTests(unittest.TestCase):
                 self.get(path, "wrong" * 5)
             self.assertEqual(caught.exception.code, 401)
 
+    def test_the_old_command_and_sweep_routes_are_gone(self):
+        for path in ("/ink/commands/" + "a" * 32, "/ink/sweep/inbox/" + "b" * 32, "/ink/today/2026-10-26"):
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(Request(self.base + path, data=b"CONFIRM", headers={"X-Diary-Remote-Key": "k" * 20}), timeout=5)
+            self.assertEqual(caught.exception.code, 404)
+
     def test_today_and_health_with_the_key(self):
         body = self.get("/ink/daily/2026-10-26", "k" * 20).read().decode()
         self.assertTrue(body.startswith("ready\nFORMAT\tHINKDAILY1\n"))
