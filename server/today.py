@@ -1,8 +1,8 @@
 """Today for the Scribe: a calendar feed and, optionally, TickTick, written as a HINKDAILY1 bundle.
 
-Meetings come from any iCalendar (.ics) URL; Google Calendar's "secret address in iCal
+Events come from any iCalendar (.ics) URL; Google Calendar's "secret address in iCal
 format" works, so there is no OAuth and no database. Whatever you put in an event's
-description appears on the Scribe as that meeting's prep. Tasks come from TickTick when a
+description appears on the Scribe as that event's notes. Tasks come from TickTick when a
 key is set. With neither source Today is just the day's blank page.
 
     python today.py [--date YYYY-MM-DD]      write today's bundle now and print what it holds
@@ -145,7 +145,7 @@ def compose(day, zone, feeds=(), get=None):
         links[ident] = {"provider": "ticktick", "project": project, "task": task}
     entries = entries[:MAX_ENTRIES - 1]
     entries.append(("capture", stable_id(document, "capture", "today"), "Open notebook", "Capture", ""))
-    for prep_limit in (8191, 1500, 300, 0):               # a very busy day sheds prep text before it sheds meetings
+    for prep_limit in (8191, 1500, 300, 0):               # a very busy day sheds notes before it sheds events
         lines = ["ready", "FORMAT\tHINKDAILY1", f"DOCUMENT\t{document}", f"DATE\t{day.isoformat()}",
                  f"ZONE\t{field(getattr(zone, 'key', 'UTC'), 63)}"]
         lines += ["\t".join(["ENTRY", kind, ident, field(title, 511), field(when, 95), field(context, prep_limit)])

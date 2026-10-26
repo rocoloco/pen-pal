@@ -18,8 +18,8 @@ the eraser, the palm rejection and the saved ink behave like a notebook.
   the moment the pen lifts, and nothing waits for Wi-Fi.
 - **The star.** Write anything, tap the star, and the answer appears on the page under
   what you asked. If you are offline the question queues and is answered later.
-- **Today.** One screen for the day: your meetings, with the event description shown
-  as prep, and a blank page under them. Pages turn like a notebook.
+- **Today.** One screen for the day: your calendar events, with each event's description
+  shown as notes, and a blank page under them. Pages turn like a notebook.
 - **A backup of every page** on your own server: the original strokes, a picture and a
   searchable note with the transcript and the answers. Nothing leaves your machines
   except what you send to your own model provider.
@@ -65,7 +65,7 @@ holds a shared key for talking to your server, never your model provider's key.
 Set `INK_ICS_URL` to any calendar feed in `.ics` format. For Google Calendar, use
 *Settings → your calendar → Integrate calendar → Secret address in iCal format*. Recurring
 events work. Whatever you write in an event's description shows up on the Scribe as the
-prep for that meeting. Set `INK_TIME_ZONE` (for example `Europe/Madrid`) if the server is
+notes for that event. Set `INK_TIME_ZONE` (for example `Europe/Madrid`) if the server is
 not in your time zone.
 
 Set `INK_TICKTICK_API_KEY` to a TickTick Open API token to switch on tasks. Without it
@@ -79,8 +79,10 @@ python today.py
 
 ## Your data
 
-The page you send is read by the vision model and the answer comes from the chat model,
-both at the provider you configure. That is the only place your handwriting goes. Pages
+Your handwriting goes to the model provider you configure, and nowhere else. That covers
+the pages you ask about and also every page the backup saves, because the backup reads
+each page to write a searchable transcript. If you switch on TickTick, task titles go to
+TickTick, and the calendar feed is fetched from wherever you point `INK_ICS_URL`. Pages
 are stored in `~/.pen-pal/` on your server (override with `PEN_PAL_HOME`).
 
 The server speaks plain HTTP with a shared key. Keep it on your home network, or put it
