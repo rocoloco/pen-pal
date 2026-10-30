@@ -839,8 +839,8 @@ def make_handler(legacy, jobs):
             pass  # Old URLs may contain a credential; don't log request paths.
 
         def authorized(self):
-            supplied = self.headers.get("X-Diary-Remote-Key", "")
-            return bool(legacy.REMOTE_KEY) and secrets.compare_digest(supplied, legacy.REMOTE_KEY)
+            supplied = self.headers.get("X-Pen-Pal-Key", "")
+            return bool(legacy.REMOTE_KEY) and secrets.compare_digest(supplied.encode("utf-8"), legacy.REMOTE_KEY.encode("utf-8"))
 
         def do_GET(self):
             if self.path == "/health":

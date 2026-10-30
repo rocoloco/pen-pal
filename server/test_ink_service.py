@@ -236,7 +236,7 @@ class Tests(unittest.TestCase):
         threading.Thread(target=server.serve_forever, daemon=True).start()
         base = "http://127.0.0.1:%d" % server.server_address[1]
         def call(path, data=None, key="route-test-key", headers=None):
-            request = Request(base + path, data=data, headers={"X-Diary-Remote-Key": key, **(headers or {})})
+            request = Request(base + path, data=data, headers={"X-Pen-Pal-Key": key, **(headers or {})})
             try:
                 with urlopen(request, timeout=5) as response:
                     return response.status, response.read()

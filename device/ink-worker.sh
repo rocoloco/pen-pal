@@ -23,7 +23,7 @@ if [ ! -s "$BASE/auth.conf" ]; then
     # The server key lives in one device-local file (0600), never in a script.
     key=$(cat "$BASE/key.conf" 2>/dev/null || true)
     [ -n "$key" ] || exit 3
-    printf 'header = "X-Diary-Remote-Key: %s"\n' "$key" > "$BASE/auth.conf"
+    printf 'header = "X-Pen-Pal-Key: %s"\n' "$key" > "$BASE/auth.conf"
     unset key
 fi
 # Optional: a tunnel starter you provide (see docs/setup.md). Not needed on a home network.

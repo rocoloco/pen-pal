@@ -12,6 +12,13 @@ the eraser, the palm rejection and the saved ink behave like a notebook.
 > but has not been tried. Expect rough edges, and expect to read some code. I do not
 > offer support, but I like hearing that it worked.
 
+## A note on names
+
+Pen Pal is the app. **Hermes** is the name of the assistant that writes the answers: you will see
+it on the Scribe screen, in the model prompt and in the code. A few folders and files keep
+the name from before Pen Pal (`hermes-native-live`, `hermes-native`, `Hermes-Ink.sh`). They
+are only names; leave them as the setup guide has them.
+
 ## What you get
 
 - **Native ink.** Pen, highlighter, eraser, undo, large controls. Every stroke is saved

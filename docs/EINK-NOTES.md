@@ -1,5 +1,9 @@
 # Why the pen styles do not show, and what to do about it
 
+> **Historical log.** These are the author's notes from debugging the pen styles on his own
+> Scribe. The probe programs and helper sources they mention (`style-probe.c`, `fbink.c`,
+> `vendor/fbink-xdamage/main.c`) are not part of this repository.
+
 Written 2026-09-12 after a failed pair of fixes to the drawing code. Read this
 before touching `draw_segment()` again — the drawing code was never the bug.
 

@@ -1,3 +1,4 @@
+import http.client
 import json
 import os
 import struct
@@ -259,7 +260,7 @@ class HandlerTests(unittest.TestCase):
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
 
     def get(self, path, key=None):
-        return urlopen(Request(self.base + path, headers={"X-Diary-Remote-Key": key} if key else {}), timeout=5)
+        return urlopen(Request(self.base + path, headers={"X-Pen-Pal-Key": key} if key else {}), timeout=5)
 
     def test_every_route_wants_the_key(self):
         for path in ("/health", "/ink/daily/2026-10-26", "/ink/stats"):
@@ -270,10 +271,15 @@ class HandlerTests(unittest.TestCase):
                 self.get(path, "wrong" * 5)
             self.assertEqual(caught.exception.code, 401)
 
+    def test_a_non_ascii_key_is_refused_not_a_crash(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_address[1], timeout=5)
+        conn.request("GET", "/health", headers={"X-Pen-Pal-Key": "ké" * 10})
+        self.assertEqual(conn.getresponse().status, 401)
+
     def test_the_old_command_and_sweep_routes_are_gone(self):
         for path in ("/ink/commands/" + "a" * 32, "/ink/sweep/inbox/" + "b" * 32, "/ink/today/2026-10-26"):
             with self.assertRaises(HTTPError) as caught:
-                urlopen(Request(self.base + path, data=b"CONFIRM", headers={"X-Diary-Remote-Key": "k" * 20}), timeout=5)
+                urlopen(Request(self.base + path, data=b"CONFIRM", headers={"X-Pen-Pal-Key": "k" * 20}), timeout=5)
             self.assertEqual(caught.exception.code, 404)
 
     def test_today_and_health_with_the_key(self):

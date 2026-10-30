@@ -25,6 +25,12 @@ pip install -r requirements.txt
 | `INK_OWNER_NAME` | no | Your first name, used in the model's prompt. |
 | `INK_ICS_URL`, `INK_TIME_ZONE` | no | Calendar feed for Today, and your time zone. |
 | `INK_TICKTICK_API_KEY` | no | Switches on the TickTick features. |
+| `INK_TODAY_REFRESH_S` | no | Seconds between Today rebuilds. Default `1800`. |
+| `INK_DAILY_DIR` | no | Where the Today files are written. Default `<PEN_PAL_HOME>/today`. |
+| `INK_ARCHIVE_PATH` | no | Where the page backup is kept. Default `<PEN_PAL_HOME>/archive`. |
+
+The `HERMES_*` variables you may see in the scripts and in `client/check-daily.sh` are set by
+the launcher or the test script. You do not need to set them.
 
 Then `python ink_service.py`. Use the same model for reading and answering, or any
 OpenAI-compatible endpoint you like; the server does not care which.
@@ -83,7 +89,7 @@ bundled here. Build it for the Scribe following its README and put the binary at
 Open **Pen Pal** from the library. Today opens first. Write on the blank page, tap the
 star, and the answer should appear under your writing in a few seconds. If it does not,
 the page says why; on the server, `python ink_service.py --stats` and the `/health` route
-(send the key in an `X-Diary-Remote-Key` header) show what it saw.
+(send the key in an `X-Pen-Pal-Key` header) show what it saw.
 
 ## Troubleshooting
 
