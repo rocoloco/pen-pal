@@ -7,7 +7,7 @@
 # retry after a lost response is safe; a synced entry is never sent again.
 set -eu
 BASE=/mnt/us/hermes-native-live
-SERVER=$(cat "$BASE/server.url" 2>/dev/null || echo http://127.0.0.1:8792)
+SERVER=$(tr -d '\r\n' 2>/dev/null <"$BASE/server.url" || echo http://127.0.0.1:8792)
 WS=$BASE/daily-workspace
 UNDO=60
 umask 077

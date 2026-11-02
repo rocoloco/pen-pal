@@ -9,7 +9,7 @@
 # does not refresh an indexed tile -- remove this file AND its .sdr folder, let the
 # Kindle rescan, then copy it back, which is how the poster was installed on 2026-09-16.
 BASE=/mnt/us/hermes-native-live
-SERVER=$(cat "$BASE/server.url" 2>/dev/null || echo http://127.0.0.1:8792)
+SERVER=$(tr -d '\r\n' 2>/dev/null <"$BASE/server.url" || echo http://127.0.0.1:8792)
 [ -x "$BASE/hermes-native" ] || exit 1
 # Today (calendar events and tasks) is composed by the server and fetched to today.wire.
 # Fetching never blocks launch for long: a quick try only when today's bundle is

@@ -3,7 +3,7 @@
 # Usage: ink-worker.sh submit|get <job id> <space> <page title> <notebook> <intent>
 set -eu
 BASE=/mnt/us/hermes-native-live
-SERVER=$(cat "$BASE/server.url" 2>/dev/null || echo http://127.0.0.1:8792)
+SERVER=$(tr -d '\r\n' 2>/dev/null <"$BASE/server.url" || echo http://127.0.0.1:8792)
 MODE=$1
 JOB=$2
 SPACE=${3:-inbox}
@@ -21,7 +21,7 @@ case "$SPACE" in inbox) ;; *) exit 2;; esac
 umask 077
 if [ ! -s "$BASE/auth.conf" ]; then
     # The server key lives in one device-local file (0600), never in a script.
-    key=$(cat "$BASE/key.conf" 2>/dev/null || true)
+    key=$(tr -d '\r\n' 2>/dev/null <"$BASE/key.conf" || true)
     [ -n "$key" ] || exit 3
     printf 'header = "X-Pen-Pal-Key: %s"\n' "$key" > "$BASE/auth.conf"
     unset key

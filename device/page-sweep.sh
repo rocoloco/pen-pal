@@ -8,7 +8,7 @@
 # re-run can never duplicate one.
 set -eu
 BASE=/mnt/us/hermes-native-live
-SERVER=$(cat "$BASE/server.url" 2>/dev/null || echo http://127.0.0.1:8792)
+SERVER=$(tr -d '\r\n' 2>/dev/null <"$BASE/server.url" || echo http://127.0.0.1:8792)
 WS=$BASE/daily-workspace
 SENT=$WS/.page-sent
 BUNDLE=$BASE/.page-bundle.tar

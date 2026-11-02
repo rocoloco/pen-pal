@@ -5,6 +5,8 @@ INK_VISION_MODEL; INK_VISION_ENDPOINT defaults to OpenAI's. Any gateway that spe
 chat completions format works (OpenRouter, a Gemini or Anthropic compatibility endpoint,
 a local server). If your model reasons before answering, set INK_VISION_REASONING_EFFORT
 (for example "none" or "low") to keep it quick; leave it unset for models that reject it.
+Gateways that route by conversation (OpenCode Go) want a stable session id: set
+INK_VISION_SESSION to any fixed string and it is sent as the x-opencode-session header.
 """
 import base64
 import json
@@ -16,6 +18,7 @@ import urllib.request
 VISION_ENDPOINT = os.environ.get("INK_VISION_ENDPOINT") or "https://api.openai.com/v1/chat/completions"
 VISION_MODEL = os.environ.get("INK_VISION_MODEL", "")
 REASONING_EFFORT = os.environ.get("INK_VISION_REASONING_EFFORT", "")
+VISION_SESSION = os.environ.get("INK_VISION_SESSION", "")
 
 
 def provider_key():
@@ -74,6 +77,8 @@ def chat(payload):
     # Name the client: Cloudflare-fronted providers block Python-urllib's default agent.
     headers = {"Content-Type": "application/json", "Authorization": "Bearer " + provider_key(),
                "User-Agent": "pen-pal/1.0"}
+    if VISION_SESSION:
+        headers["x-opencode-session"] = VISION_SESSION
     request = urllib.request.Request(VISION_ENDPOINT, data=json.dumps(payload).encode(), headers=headers, method="POST")
     with urllib.request.urlopen(request, timeout=90) as response:
         return json.loads(response.read(1000000))

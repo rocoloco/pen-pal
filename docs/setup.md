@@ -20,6 +20,7 @@ pip install -r requirements.txt
 | `INK_VISION_MODEL` | yes | A model that reads images and can return JSON. |
 | `INK_VISION_ENDPOINT` | no | Chat completions URL. Defaults to OpenAI's. |
 | `INK_VISION_REASONING_EFFORT` | no | Set (for example `low`) only if your model reasons and you want it faster. |
+| `INK_VISION_SESSION` | no | Any fixed string. Sent as the `x-opencode-session` header, which OpenCode Go requires on every request. Other providers do not need it. |
 | `PEN_PAL_HOST` / `PEN_PAL_PORT` | no | Default `127.0.0.1:8792`. Use `0.0.0.0` so the Scribe can reach it. |
 | `PEN_PAL_HOME` | no | Where pages and the database live. Default `~/.pen-pal`. |
 | `INK_OWNER_NAME` | no | Your first name, used in the model's prompt. |
@@ -71,6 +72,8 @@ Then create two small files in `/mnt/us/hermes-native-live/`:
 - `server.url`: where the server is, for example `http://192.168.1.20:8792`.
 
 Optionally add `owner.name` with your first name for the greeting.
+
+Line endings do not matter: the scripts drop a trailing carriage return, so files saved by a Windows editor work. Leave the key and URL alone on a single line with no quotes.
 
 If your server is not reachable directly (for example you run it away from home), put an
 executable `tunnel.sh` in the same folder. The scripts run it before they talk to the
