@@ -1,6 +1,6 @@
 #!/bin/sh
-# Install Pen Pal on a jailbroken Kindle Scribe over SSH. Run it from a repo checkout or an unpacked
-# release bundle, on the computer that will run the server. See docs/setup.md for the whole picture.
+# Install Pen Pal on a jailbroken Kindle Scribe over SSH. Run it from a repo checkout, on the computer
+# that will run the server, after building the app. See docs/setup.md for the whole picture.
 #
 #   ./install.sh SCRIBE_IP --server http://192.168.1.20:8792 [--key KEY] [--ssh-key FILE]
 #                          [--fbink-xdamage FILE] [--binary FILE] [--replace] [--dry-run]
@@ -32,7 +32,7 @@ first() { for p in "$@"; do [ -e "$p" ] && { echo "$p"; return; }; done; }
 [ -n "$BIN" ] || BIN=$(first "$HERE/hermes-native" "$HERE/client/build/hermes-native" || true)
 FONTS=$(first "$HERE/fonts" "$HERE/client/fonts" || true)
 DEVICE=$HERE/device
-[ -n "$BIN" ] && [ -f "$BIN" ] || die "no hermes-native binary. Use a release bundle, or build it (docs/setup.md) or pass --binary."
+[ -n "$BIN" ] && [ -f "$BIN" ] || die "no hermes-native binary. Build it (docs/setup.md, step 2) or pass --binary FILE."
 [ -n "$FONTS" ] && [ -f "$DEVICE/Hermes-Ink.sh" ] || die "fonts/ or device/ missing next to install.sh"
 [ -z "$FBINK" ] || [ -f "$FBINK" ] || die "--fbink-xdamage: no such file: $FBINK"
 case $SERVER in http://*|https://*) ;; *) die "--server must start with http:// or https://" ;; esac

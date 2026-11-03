@@ -58,8 +58,8 @@ part of that test. Other Scribe models are untested.
 ## 3. Put files on the Scribe
 
 **The quick way: `install.sh`.** With SSH working on the Scribe (your jailbreak guide covers
-it), run this on the computer that will host the server, from a repo checkout or an unpacked
-release bundle (the bundle includes the built app, so you can skip step 2):
+it), run this on the computer that will host the server, from a repo checkout where you have
+built the app (step 2; or pass `--binary FILE`):
 
 ```sh
 ./install.sh SCRIBE_IP --server http://YOUR_COMPUTER_IP:8792 --fbink-xdamage path/to/fbink_xdamage

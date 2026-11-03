@@ -66,7 +66,7 @@ holds a shared key for talking to your server, never your model provider's key.
    python ink_service.py
    ```
 
-2. **Scribe**: get the app (the release bundle has it built, or build it yourself) and run
+2. **Scribe**: build the app (see [docs/setup.md](docs/setup.md)) and run
    `./install.sh SCRIBE_IP --server http://YOUR_COMPUTER_IP:8792`. It copies the files over
    SSH and prints the server command with a matching key.
    [docs/setup.md](docs/setup.md) walks through it, including what you need first
