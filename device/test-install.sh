@@ -36,11 +36,18 @@ cmp -s "$HERE/device/Hermes-Ink.sh" "$SANDBOX/mnt/us/documents/Hermes-Ink.sh" ||
 if run --key $KEY2; then fail "overwrote an existing install without --replace"; fi
 [ "$(cat "$LIVE/key.conf")" = $KEY1 ] || fail "refused install still changed the key"; ok "refuses to overwrite"
 
+echo ORIGINAL-LAUNCHER > "$SANDBOX/mnt/us/documents/Hermes-Ink.sh"
 run --key $KEY2 --replace || fail "replace"
+grep -q "reusing fbink_xdamage" "$T/out" || fail "no note that the display helper is reused"
 [ "$(cat "$LIVE/key.conf")" = $KEY2 ] || fail "new key"
 OLD=$(ls -d "$SANDBOX/mnt/us/hermes-native-live.backup-"*)
 [ "$(cat "$OLD/key.conf")" = $KEY1 ] && [ -f "$OLD/Hermes-Ink.sh.documents-backup" ] || fail "backup"
 [ -f "$LIVE/fbink_xdamage" ] || fail "display helper not carried over"; ok "replace keeps a backup and the display helper"
+
+# The go-back commands the script prints must really put the old install and launcher back.
+grep -E '^  (rm|mv) ' "$T/out" | while read -r line; do ssh root@x "$line"; done
+[ "$(cat "$LIVE/key.conf")" = $KEY1 ] || fail "go-back did not restore the old install"
+[ "$(cat "$SANDBOX/mnt/us/documents/Hermes-Ink.sh")" = ORIGINAL-LAUNCHER ] || fail "go-back did not restore the old launcher"; ok "printed go-back steps restore the old install and launcher"
 
 if run --key short; then fail "accepted a short key"; fi; ok "rejects a short key"
 echo "all install checks passed"

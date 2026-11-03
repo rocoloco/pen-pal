@@ -62,7 +62,13 @@ echo "Scribe:   root@$HOST"
 echo "Binary:   $BIN"
 echo "Server:   $SERVER"
 [ "$HAVE_OLD" = 0 ] || echo "Existing: will be moved to $BACKUP (and the launcher copied into it)"
-[ -n "$FBINK" ] || echo "Note:     no --fbink-xdamage given; the app cannot refresh the e-ink panel without it (docs/setup.md, section 4)"
+if [ -z "$FBINK" ]; then
+    if [ "$HAVE_OLD" = 1 ] && remote "[ -x $LIVE/fbink_xdamage ]"; then
+        echo "Display:  reusing fbink_xdamage from the existing install"
+    else
+        echo "Note:     no --fbink-xdamage given; the app cannot refresh the e-ink panel without it (docs/setup.md, section 4)"
+    fi
+fi
 [ "$DRY" = 0 ] || { echo "Dry run: nothing was changed."; exit 0; }
 
 STAGE=$(mktemp -d)
@@ -89,6 +95,11 @@ echo
 echo "  cd server && pip install -r requirements.txt"
 echo "  PEN_PAL_KEY=$KEY PEN_PAL_HOST=0.0.0.0 INK_VISION_API_KEY=... INK_VISION_MODEL=... python ink_service.py"
 echo
-echo "Then open Pen Pal from the Scribe's library. To go back: close it, delete $LIVE,"
-[ "$HAVE_OLD" = 0 ] || echo "and rename $BACKUP to $LIVE."
-[ "$HAVE_OLD" = 1 ] || echo "and delete /mnt/us/documents/Hermes-Ink.sh."
+echo "Then open Pen Pal from the Scribe's library. To go back, close it and then:"
+if [ "$HAVE_OLD" = 1 ]; then
+    echo "  rm -rf $LIVE"
+    echo "  mv $BACKUP $LIVE"
+    echo "  mv $LIVE/Hermes-Ink.sh.documents-backup /mnt/us/documents/Hermes-Ink.sh"
+else
+    echo "  rm -rf $LIVE /mnt/us/documents/Hermes-Ink.sh"
+fi
