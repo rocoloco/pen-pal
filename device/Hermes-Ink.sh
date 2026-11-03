@@ -11,6 +11,16 @@
 BASE=/mnt/us/hermes-native-live
 SERVER=$(tr -d '\r\n' 2>/dev/null <"$BASE/server.url" || echo http://127.0.0.1:8792)
 [ -x "$BASE/hermes-native" ] || exit 1
+# curl reads the key from auth.conf, built from key.conf. Build it here as well as in
+# ink-worker.sh: without it the first launch has no key, skips fetching Today, and the
+# blank offline day it falls back to is swapped for the real one after the first ask.
+if [ ! -s "$BASE/auth.conf" ]; then
+    key=$(tr -d '\r\n' 2>/dev/null <"$BASE/key.conf" || true)
+    if [ -n "$key" ]; then
+        (umask 077; printf 'header = "X-Pen-Pal-Key: %s"\n' "$key" > "$BASE/auth.conf")
+    fi
+    unset key
+fi
 # Today (calendar events and tasks) is composed by the server and fetched to today.wire.
 # Fetching never blocks launch for long: a quick try only when today's bundle is
 # missing, then the background loop below keeps it fresh.
