@@ -4,6 +4,11 @@ A pen-first assistant for a jailbroken Kindle Scribe. You write on the page with
 pen, tap the star, and the answer is written back on the same page, under your own
 handwriting, in a handwriting face. No keyboard, no chat window, no screen of buttons.
 
+![A question written on a Kindle Scribe, the star tapped, and the answer written back under it in handwriting](docs/media/pen-pal-demo.gif)
+
+The writing is sped up 2x and the wait for the answer (17 seconds in this take) is cut.
+[Same clip as a video](docs/media/pen-pal-demo.mp4).
+
 It is a native app, not a web page: it draws straight to the e-ink screen, so the pen,
 the eraser, the palm rejection and the saved ink behave like a notebook.
 
