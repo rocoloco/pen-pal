@@ -61,9 +61,11 @@ holds a shared key for talking to your server, never your model provider's key.
    python ink_service.py
    ```
 
-2. **Scribe**: build the app, copy the files across and point it at your server.
+2. **Scribe**: get the app (the release bundle has it built, or build it yourself) and run
+   `./install.sh SCRIBE_IP --server http://YOUR_COMPUTER_IP:8792`. It copies the files over
+   SSH and prints the server command with a matching key.
    [docs/setup.md](docs/setup.md) walks through it, including what you need first
-   (a jailbroken Scribe).
+   (a jailbroken Scribe and the `fbink_xdamage` helper).
 
 3. **Optional**: add your calendar and TickTick (see below).
 

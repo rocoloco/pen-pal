@@ -51,13 +51,29 @@ docker run --rm -v "$PWD/client:/work" debian:trixie sh /work/build-isolated.sh
 The result is `client/build/hermes-native`. To see the app work without a Scribe, `client/check-daily.sh` replays a
 whole day (Today, an event page, asks and answers, offline, sheets, a new day) against a fake server and saves a
 screenshot at each stop. It needs gcc, the X11 headers and an X display (`Xvfb` works). The author built and ran this on a
-first-generation Scribe. I checked the host build and its self-test, and that the ARM target compiles, before
-publishing; I have not run this repo layout on a Scribe, and other Scribe models are untested.
+first-generation Scribe (firmware 5.19.6). This repo's layout was installed on one fresh from the docs and answered a
+handwritten question end to end, with the server reached through an SSH tunnel; a direct connection over home Wi-Fi was not
+part of that test. Other Scribe models are untested.
 
 ## 3. Put files on the Scribe
 
-Everything lives in one folder, `/mnt/us/hermes-native-live/`. Connect the Scribe over USB
-and copy:
+**The quick way: `install.sh`.** With SSH working on the Scribe (your jailbreak guide covers
+it), run this on the computer that will host the server, from a repo checkout or an unpacked
+release bundle (the bundle includes the built app, so you can skip step 2):
+
+```sh
+./install.sh SCRIBE_IP --server http://YOUR_COMPUTER_IP:8792 --fbink-xdamage path/to/fbink_xdamage
+```
+
+It copies everything below, writes `key.conf` and `server.url`, makes up a key if you do not
+pass `--key`, and prints the command to start the server with that key. Close Pen Pal on the
+Scribe first. If an install is already there it stops; add `--replace` to move the old one
+aside to `hermes-native-live.backup-<date>` (nothing is deleted). `--dry-run` shows the plan
+without changing anything. You need to have built or downloaded `fbink_xdamage` yourself
+(step 4); without it the script still installs, but the screen will not refresh.
+
+**By hand.** Everything lives in one folder, `/mnt/us/hermes-native-live/`. Connect the
+Scribe over USB and copy:
 
 | From | To |
 |---|---|
