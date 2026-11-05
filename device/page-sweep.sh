@@ -2,8 +2,8 @@
 # Page sweep: back up every daily page that changed, so no ink lives only on the Scribe.
 # Each page goes up as a small tar of its original strokes (.ink), Hermes' answers on it
 # (.hermes) and its title/date/kind (.meta). The server keeps the latest version of each
-# page in the vault -- strokes, a picture and a readable note -- which the nightly VPS
-# backup carries off the machine. The tar's sha256 is its version id, and .page-sent
+# page in its archive: the strokes, a picture and a readable note. The tar's sha256 is
+# its version id, and .page-sent
 # remembers what the server already has, so an unchanged page costs nothing and a
 # re-run can never duplicate one.
 set -eu

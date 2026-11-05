@@ -2,41 +2,39 @@
 
 A pen-first assistant for a jailbroken Kindle Scribe. You write on the page with the
 pen, tap the star, and the answer is written back on the same page, under your own
-handwriting, in a handwriting face. No keyboard, no chat window, no screen of buttons.
+handwriting, in a handwriting font. No keyboard, no chat window, no screen of buttons.
 
 ![A question written on a Kindle Scribe, the star tapped, and the answer written back under it in handwriting](docs/media/pen-pal-demo.gif)
 
-The writing is sped up 2x and the wait for the answer (17 seconds in this take) is cut.
 [Same clip as a video](docs/media/pen-pal-demo.mp4).
 
-It is a native app, not a web page: it draws straight to the e-ink screen, so the pen,
+It's a native app, not a web page. It draws straight to the e-ink screen, so the pen,
 the eraser, the palm rejection and the saved ink behave like a notebook.
 
-> **Status: a hobby project, shared as-is.** It was built and used on a first-generation
-> Kindle Scribe (firmware 5.19.6). The second-generation Scribe uses the same jailbreak
-> but has not been tried. Expect rough edges, and expect to read some code. I do not
+> **Status: a hobby project, shared as-is.** I built it and used it on a first-generation
+> Kindle Scribe (firmware 5.19.6). The second-generation Scribe uses the same jailbreak,
+> but I haven't tried it. Expect rough edges, and expect to read some code. I don't
 > offer support, but I like hearing that it worked.
 
 ## A note on names
 
-Pen Pal is the app. **Hermes** is the name of the assistant that writes the answers: you will see
-it on the Scribe screen, in the model prompt and in the code. A few folders and files keep
-the name from before Pen Pal (`hermes-native-live`, `hermes-native`, `Hermes-Ink.sh`). They
-are only names; leave them as the setup guide has them.
+Pen Pal is the app. Hermes is the name of the assistant that writes the answers. You'll
+see it on the Scribe screen, in the model prompt and in the code. A few folders and files
+keep the name from before Pen Pal (`hermes-native-live`, `hermes-native`, `Hermes-Ink.sh`).
+They're only names. Leave them as the setup guide has them.
 
 ## What you get
 
-- **Native ink.** Pen, highlighter, eraser, undo, large controls. Every stroke is saved
+- Native ink: pen, highlighter, eraser, undo and large controls. Every stroke is saved
   the moment the pen lifts, and nothing waits for Wi-Fi.
-- **The star.** Write anything, tap the star, and the answer appears on the page under
-  what you asked. If you are offline the question queues and is answered later.
-- **Today.** One screen for the day: your calendar events, with each event's description
-  shown as notes, and a blank page under them. Pages turn like a notebook.
-- **A backup of every page** on your own server: the original strokes, a picture and a
-  searchable note with the transcript and the answers. Nothing leaves your machines
-  except what you send to your own model provider.
-- **TickTick, if you want it.** Boxes you draw with the pen (`[ ] call plumber fri`)
-  become tasks, tasks due today show up on Today, and tapping one done completes it.
+- The star: write anything, tap it, and the answer appears on the page under what you
+  asked. If you're offline, the question queues and gets answered later.
+- Today: one screen for the day, with your calendar events (each event's description
+  shows as notes) and a blank page under them. Pages turn like a notebook.
+- A backup of every page on your own server: the original strokes, a picture and a
+  searchable note with the transcript and the answers.
+- TickTick, if you want it: boxes you draw with the pen (`[ ] call plumber fri`) become
+  tasks, tasks due today show up on Today, and tapping one done completes it.
 
 ## How it works
 
@@ -49,12 +47,12 @@ are only names; leave them as the setup guide has them.
                                             └─▶ one OpenAI-compatible API key
 ```
 
-You run the small Python server yourself and give it one API key. The Scribe only ever
-holds a shared key for talking to your server, never your model provider's key.
+You run the small Python server yourself and give it one API key. The Scribe only holds
+a shared key for talking to your server. It never sees your model provider's key.
 
 ## Quick start
 
-1. **Server** (Python 3.9+):
+1. Start the server (Python 3.9+):
 
    ```sh
    cd server
@@ -66,27 +64,27 @@ holds a shared key for talking to your server, never your model provider's key.
    python ink_service.py
    ```
 
-2. **Scribe**: get the app (the [release bundle](https://github.com/rocoloco/pen-pal/releases/latest)
-   has it built, or build it yourself, see [docs/setup.md](docs/setup.md)) and run
+2. Put the app on the Scribe. The [release bundle](https://github.com/rocoloco/pen-pal/releases/latest)
+   has it built, or you can build it yourself (see [docs/setup.md](docs/setup.md)). Then run
    `./install.sh SCRIBE_IP --server http://YOUR_COMPUTER_IP:8792`. It copies the files over
    SSH and prints the server command with a matching key.
-   [docs/setup.md](docs/setup.md) walks through it, including what you need first
-   (a jailbroken Scribe and the `fbink_xdamage` helper).
+   [docs/setup.md](docs/setup.md) walks through it, including what you need first: a
+   jailbroken Scribe and the `fbink_xdamage` helper.
 
-3. **Optional**: add your calendar and TickTick (see below).
+3. Optional: add your calendar and TickTick (see below).
 
 ## Your calendar and tasks
 
 Set `INK_ICS_URL` to any calendar feed in `.ics` format. For Google Calendar, use
 *Settings → your calendar → Integrate calendar → Secret address in iCal format*. Recurring
 events work. Whatever you write in an event's description shows up on the Scribe as the
-notes for that event. Set `INK_TIME_ZONE` (for example `Europe/Madrid`) if the server is
-not in your time zone.
+notes for that event. Set `INK_TIME_ZONE` (for example `America/New_York`) if the server
+isn't in your time zone.
 
-Set `INK_TICKTICK_API_KEY` to a TickTick Open API token to switch on tasks. Without it
+Set `INK_TICKTICK_API_KEY` to a TickTick Open API token to switch on tasks. Without it,
 none of the TickTick code runs.
 
-Check what Today will look like without touching the Scribe:
+To check what Today will look like without touching the Scribe:
 
 ```sh
 python today.py
@@ -101,24 +99,24 @@ TickTick, and the calendar feed is fetched from wherever you point `INK_ICS_URL`
 are stored in `~/.pen-pal/` on your server (override with `PEN_PAL_HOME`).
 
 The server speaks plain HTTP with a shared key. Keep it on your home network, or put it
-behind a VPN or a TLS proxy. Do not expose it to the internet as it is.
+behind a VPN or a TLS proxy. Don't expose it to the internet as it is.
 
 ## Not included
 
-- **The jailbreak.** Pen Pal does not contain or distribute one. The Kindle modding
+- The jailbreak. Pen Pal doesn't contain or distribute one. The Kindle modding
   community keeps good guides at [kindlemodding.org](https://kindlemodding.org). Check
   the rules where you live.
-- **`fbink_xdamage`**, the small helper that pushes the app's drawing onto the e-ink
-  panel. It is a separate project; see [docs/setup.md](docs/setup.md).
+- `fbink_xdamage`, the small helper that pushes the app's drawing onto the e-ink
+  panel. It's a separate project; see [docs/setup.md](docs/setup.md).
 
 ## Layout
 
-| Folder | What is in it |
+| Folder | What's in it |
 |---|---|
 | `client/` | The native app (C, X11). `build.sh` builds a host test binary and the ARM one; `check-daily.sh` replays a day against a fake server and saves screenshots. |
 | `device/` | Scripts that run on the Scribe: the launcher, the sender and the page backup. |
 | `server/` | The Python server, the Today builder and the tests (`python -m unittest`). |
-| `docs/` | Setup guide and notes on driving an e-ink panel from X11. |
+| `docs/` | Setup guide and short notes on drawing to an e-ink panel from X11. |
 
 ## Credits
 

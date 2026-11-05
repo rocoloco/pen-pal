@@ -286,7 +286,7 @@ static int daily_clear_page(void){
 /* ---- Tasks done from Today ----------------------------------------------------------
  * A task row's box marks it done here at once. The tap is kept in the day's done.list
  * ("<entry> <epoch> <date>"); done-sweep.sh sends taps older than DAILY_DONE_UNDO_S to
- * the VPS, which completes the task in TickTick, and records the answer in done.sent
+ * the server, which completes the task in TickTick, and records the answer in done.sent
  * ("<entry> synced|failed|unknown <epoch>", last line wins). The app never writes
  * done.sent and the script never writes done.list, so a tap cannot be lost to a race.
  * Within the undo window a second tap takes it back before anything is sent. */

@@ -4,4 +4,7 @@ __pycache__/
 client/build/
 .env
 .env.*
+key.conf
+auth.conf
+server.url
 .pytest_cache/

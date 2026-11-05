@@ -1,5 +1,5 @@
 #!/bin/sh
-# Done sweep: send tasks tapped done on Today to the VPS, which completes them in
+# Done sweep: send tasks tapped done on Today to the server, which completes them in
 # TickTick. The app writes daily/<doc>/done.list ("<entry> <epoch> <date>"); this script
 # only reads it, sends a tap once its undo window (60 s) has passed, and appends the
 # answer to done.sent ("<entry> synced|failed|unknown <epoch>", last line wins), which

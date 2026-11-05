@@ -1,13 +1,6 @@
 #!/bin/sh
 # Name: Pen Pal
 # Author: José Rosario
-# Icon: /mnt/us/hermes-native-live/hermes-ink-cover.jpg
-# The Icon line is read by SH Integration (the mod that runs .sh items from the library)
-# when it builds the library tile; the mod's documentation places the extracted image at
-# documents/Hermes-Ink.sh.sdr/icon.jpeg. The cover deliberately lives outside documents/
-# so the image itself does not turn up as a second library item. Replacing the image
-# does not refresh an indexed tile -- remove this file AND its .sdr folder, let the
-# Kindle rescan, then copy it back, which is how the poster was installed on 2026-09-16.
 BASE=/mnt/us/hermes-native-live
 SERVER=$(tr -d '\r\n' 2>/dev/null <"$BASE/server.url" || echo http://127.0.0.1:8792)
 [ -x "$BASE/hermes-native" ] || exit 1

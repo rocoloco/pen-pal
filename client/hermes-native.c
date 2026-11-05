@@ -630,7 +630,7 @@ static void status_only(void) {product_repaint();}
  * The old implementation offset width by 1-3px and used a 2-on/2-off X dash with
  * round caps, which round caps fill in at any real width, so all four pens drew
  * the same stroke. Measured: fountain and felt differed by exactly 1px, and
- * pencil rendered solid. See style-probe.c / dash-probe.c.
+ * pencil rendered solid.
  */
 /* Fountain: width comes from DIRECTION, not from speed.
  *
